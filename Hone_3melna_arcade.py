@@ -4,6 +4,7 @@ import random
 import time
 import math
 import sys
+from collections import deque
 
 SCREEN_WIDTH = 2000
 SCREEN_HEIGHT = 1000
@@ -116,11 +117,42 @@ def get_pac_pan_pos(width, height):
     posx = int((width - len(ft_small[0])) / 2 + 3)
     return posx, posy
 
+class CountdownTimer:
+    def __init__(self, seconds):
+        self.initial = seconds
+        self.remaining = seconds
+        self._start = None
+        self.running = False
+
+    def start(self):
+        self._start = time.perf_counter()
+        self.remaining = self.initial
+        self.running = True
+
+    def pause(self):
+        if self.running:
+            self.remaining -= time.perf_counter() - self._start
+            self.running = False
+
+    def resume(self):
+        if not self.running:
+            self._start = time.perf_counter()
+            self.running = True
+
+    def time_left(self):
+        if self.running:
+            return max(0, self.remaining - (time.perf_counter() - self._start))
+        return max(0, self.remaining)
+
+    def is_finished(self):
+        return self.time_left() <= 0
+
+
 class Ghost:
     def __init__(self, x, y, color):
         self.x = x
         self.y = y
-        self.timer = None
+        self.timer = CountdownTimer(5)
         self.move = ""
         self.originalColor = color
         self.color = color
@@ -131,6 +163,51 @@ class Ghost:
         self.is_edible = False
         self.color_timer = swap_color_state()
 
+    def find_path(self, grid, start, end, width, height):
+        sx, sy = int(round(start[0])), int(round(start[1]))
+        ex, ey = int(round(end[0])),   int(round(end[1]))
+
+        if (sx, sy) == (ex, ey):
+            return None
+
+        directions = [
+            (0,  1, "up",    1),
+            (0, -1, "down",  4),
+            (1,  0, "right", 2),
+            (-1,  0, "left",  8),
+        ]
+
+        queue   = deque()
+        visited = set()
+        parent  = {}
+
+        queue.append((sx, sy))
+        visited.add((sx, sy))
+
+        while queue:
+            x, y = queue.popleft()
+
+            if (x, y) == (ex, ey):
+                cur = (x, y)
+                while True:
+                    prev, direction = parent[cur]
+                    if prev == (sx, sy):
+                        return direction
+                    cur = prev
+
+            cell = grid[y][x]
+
+            for dx, dy, letter, wall_bit in directions:
+                nx, ny = x + dx, y + dy
+
+                if (0 <= nx < width and 0 <= ny < height):
+                    if (cell & wall_bit) == 0 and (nx, ny) not in visited:
+                        queue.append((nx, ny))
+                        visited.add((nx, ny))
+                        parent[(nx, ny)] = ((x, y), letter)
+
+        return None
+
 
 class Cheats:
     def __init__(self):
@@ -140,6 +217,7 @@ class Cheats:
 class Game(arcade.Window):
     def __init__(self, grids: list[list[list[int]]], dicr: Dict) -> None:
         super().__init__(fullscreen=True, title= "Pac-Man")
+        self.pause = True
         self.lives = dicr['lives']
         self.grids = grids
         self.dicr = dicr
@@ -168,46 +246,45 @@ class Game(arcade.Window):
         self.camera = arcade.camera.Camera2D()
         self.valid_camera = self.__width > 37 or self.__height >= 20
         self.score = 0
-        self.time_left = time.time() + dicr["level_max_time"]
+        self.time_left = CountdownTimer(dicr["level_max_time"])
+        self.time_left.start()
+        self.intro_sound = arcade.sound.load_sound("pacmanPack/pacman_intro.wav")
+        self.start = True
+
 
     def init_phantome(self):
         ghosts = []
         x, y = 0, 0
-        ghosts.append(Ghost(
-            x,
-            y,
-            "red"
-        ))
+        ghosts.append(Ghost(x, y, "red"))
         x, y = 0, self.__height - 1
-        ghosts.append(Ghost(
-            x,
-            y,
-            "orange"
-        ))
+        ghosts.append(Ghost(x, y, "orange"))
         x, y = self.__width - 1, 0
-        ghosts.append(Ghost(
-            x,
-            y,
-            "green"
-        ))
+        ghosts.append(Ghost(x, y, "green"))
         x, y = self.__width - 1, self.__height - 1
-        ghosts.append(Ghost(
-            x,
-            y,
-            "yellow"
-        ))
+        ghosts.append(Ghost(x, y, "yellow"))
         return ghosts
 
     # press on the keyboard
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.LEFT or key == arcade.key.A:
-            self.current_direction = "left"
-        elif key == arcade.key.RIGHT or key == arcade.key.D:
-            self.current_direction = "right"
-        elif key == arcade.key.UP or key == arcade.key.W:
-            self.current_direction = "up"
-        elif key == arcade.key.DOWN or key == arcade.key.S:
-            self.current_direction = "down"
+        if self.pause:
+            if key == arcade.key.LEFT or key == arcade.key.A:
+                self.current_direction = "left"
+            elif key == arcade.key.RIGHT or key == arcade.key.D:
+                self.current_direction = "right"
+            elif key == arcade.key.UP or key == arcade.key.W:
+                self.current_direction = "up"
+            elif key == arcade.key.DOWN or key == arcade.key.S:
+                self.current_direction = "down"
+        if key == arcade.key.SPACE:
+            self.pause = not self.pause
+            if self.time_left.running:
+                self.time_left.pause()
+                for g in self.ghosts:
+                    g.timer.pause()
+            else:
+                self.time_left.resume()
+                for g in self.ghosts:
+                    g.timer.resume()
 
 
     # scaling on the arcade screen
@@ -224,104 +301,120 @@ class Game(arcade.Window):
     def on_update(self, delta_time: float):
         x, y = self.pac_man_pos
         px, py = self._get_screen_pos(*self.pac_man_pos)
-        if self.valid_camera:
-            self.camera.position = (px, py)
-        if self.walk != self.current_direction:
-            if opp(self.current_direction, self.walk):
-                if self.current_direction == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
-                    x -= 1/16
-                    self.pac_man_pos = x, y
-                    self.pac_man_direction = 180
-                if self.current_direction == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
-                    x += 1/16
-                    self.pac_man_pos = x, y
-                    self.pac_man_direction = 0
-                if self.current_direction == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
-                    y += 1/16
-                    self.pac_man_pos = x, y
-                    self.pac_man_direction = 270
-                if self.current_direction == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
-                    y -= 1/16
-                    self.pac_man_pos = x, y
-                    self.pac_man_direction = 90
-                self.walk = self.current_direction
+        if self.pause:
+            if self.valid_camera:
+                self.camera.position = (px, py)
+            elif self.walk != self.current_direction:
+                if opp(self.current_direction, self.walk):
+                    if self.current_direction == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
+                        x -= 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 180
+                    if self.current_direction == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
+                        x += 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 0
+                    if self.current_direction == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
+                        y += 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 270
+                    if self.current_direction == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
+                        y -= 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 90
+                    self.walk = self.current_direction
+                else:
+                    self.previous_direction = self.walk
+                    if self.previous_direction == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
+                        x -= 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 180
+                    if self.previous_direction == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
+                        x += 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 0
+                    if self.previous_direction == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
+                        y += 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 270
+                    if self.previous_direction == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
+                        y -= 1/16
+                        self.pac_man_pos = x, y
+                        self.pac_man_direction = 90
+                    if x % 1 == 0 and y % 1 == 0:
+                        if not (self.current_grid[int(y)][int(x)] & 8) and self.current_direction == "left":
+                            self.walk = self.current_direction
+                        if not (self.current_grid[int(y)][int(x)] & 2) and self.current_direction == "right":
+                            self.walk = self.current_direction
+                        if not (self.current_grid[int(y)][int(x)] & 1) and self.current_direction == "up":
+                            self.walk = self.current_direction
+                        if not (self.current_grid[int(y)][int(x)] & 4) and self.current_direction == "down":
+                            self.walk = self.current_direction
             else:
-                self.previous_direction = self.walk
-                if self.previous_direction == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
+                if self.walk == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
                     x -= 1/16
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 180
-                if self.previous_direction == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
+                if self.walk == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
                     x += 1/16
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 0
-                if self.previous_direction == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
+                if self.walk == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
                     y += 1/16
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 270
-                if self.previous_direction == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
+                if self.walk == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
                     y -= 1/16
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 90
-                if x % 1 == 0 and y % 1 == 0:
-                    if not (self.current_grid[int(y)][int(x)] & 8) and self.current_direction == "left":
-                        self.walk = self.current_direction
-                    if not (self.current_grid[int(y)][int(x)] & 2) and self.current_direction == "right":
-                        self.walk = self.current_direction
-                    if not (self.current_grid[int(y)][int(x)] & 1) and self.current_direction == "up":
-                        self.walk = self.current_direction
-                    if not (self.current_grid[int(y)][int(x)] & 4) and self.current_direction == "down":
-                        self.walk = self.current_direction
-        else:
-            if self.walk == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
-                x -= 1/16
-                self.pac_man_pos = x, y
-                self.pac_man_direction = 180
-            if self.walk == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
-                x += 1/16
-                self.pac_man_pos = x, y
-                self.pac_man_direction = 0
-            if self.walk == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
-                y += 1/16
-                self.pac_man_pos = x, y
-                self.pac_man_direction = 270
-            if self.walk == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
-                y -= 1/16
-                self.pac_man_pos = x, y
-                self.pac_man_direction = 90
-        for g in self.ghosts:
-            possible_moves = []
-            if g.x % 1 == 0 and g.y % 1 == 0:
-                if not self.current_grid[math.ceil(g.y)][int(g.x)] & 4:
-                    possible_moves.append("down")    
-                if not self.current_grid[math.floor(g.y)][int(g.x)] & 1:
-                    possible_moves.append("up")
-                if not self.current_grid[int(g.y)][math.ceil(g.x)] & 8:
-                    possible_moves.append("left")
-                if not self.current_grid[int(g.y)][math.floor(g.x)] & 2:
-                    possible_moves.append("right")
-                g.move = random.choice(possible_moves)
-            if g.move == "right":
-                g.x += 1/32
-            if g.move == "left":
-                g.x -= 1/32
-            if g.move == "up":
-                g.y += 1/32
-            if g.move == "down":
-                g.y -= 1/32
-            x, y = self.pac_man_pos
+        if self.pause:
+            for g in self.ghosts:
+                possible_moves = []
+                if g.x % 1 == 0 and g.y % 1 == 0:
+                    if not self.current_grid[math.ceil(g.y)][int(g.x)] & 4:
+                        possible_moves.append("down")    
+                    if not self.current_grid[math.floor(g.y)][int(g.x)] & 1:
+                        possible_moves.append("up")
+                    if not self.current_grid[int(g.y)][math.ceil(g.x)] & 8:
+                        possible_moves.append("left")
+                    if not self.current_grid[int(g.y)][math.floor(g.x)] & 2:
+                        possible_moves.append("right")
+                    gx_int = int(round(g.x))
+                    gy_int = int(round(g.y))
+                    pac_x, pac_y = int(x), int(y)
+                    next_step = g.find_path(
+                        self.current_grid,
+                        (gx_int, gy_int),
+                        (pac_x, pac_y),
+                        self.__width,
+                        self.__height
+                    )
+                    g.move = next_step
+                    if g.is_edible:
+                        if len(possible_moves) > 1:
+                            if next_step in possible_moves:
+                                possible_moves.remove(next_step)
+                            g.move = random.choice(possible_moves)
+                if g.move == "right":
+                    g.x += 1/32
+                if g.move == "left":
+                    g.x -= 1/32
+                if g.move == "up":
+                    g.y += 1/32
+                if g.move == "down":
+                    g.y -= 1/32
+                x, y = self.pac_man_pos
 
-            if x - 0.2 <= g.x <= x + 0.2 and y - 0.2 <= g.y <= y + 0.2:
-                if not g.is_edible:
-                    self.lives -= 1
-                    self.ghosts = self.init_phantome()
-                    self.pac_man_pos = get_pac_pan_pos(self.__width, self.__height)
-                    if self.lives == 0:
-                        sys.exit(0)
-            if time.time() >= self.pac_man_timer:
-                self.pac_man_invincible = False
-                for g in self.ghosts:
-                    g.is_edible = False
+                if x - 0.2 <= g.x <= x + 0.2 and y - 0.2 <= g.y <= y + 0.2:
+                    if not g.is_edible:
+                        self.lives -= 1
+                        self.ghosts = self.init_phantome()
+                        self.pac_man_pos = get_pac_pan_pos(self.__width, self.__height)
+                        if self.lives == 0:
+                            sys.exit(0)
+        for g in self.ghosts:
+            if g.timer.is_finished():
+                g.is_edible = False
 
 
     def on_draw(self):
@@ -385,7 +478,7 @@ class Game(arcade.Window):
                             self.remaining_super_points = 4
                             self.ghosts = self.init_phantome()
                             self.valid_camera = self.__width > 37 or self.__height >= 20
-                            self.time_left = time.time() + self.dicr["level_max_time"]
+                            self.time_left = CountdownTimer(self.dicr["level_max_time"])
 
                     if self.coins[row_idx][col_idx] == 1:
                         x, y = self._get_screen_pos(col_idx, row_idx)
@@ -401,7 +494,7 @@ class Game(arcade.Window):
                         )
             self.actual_coins_state = self.coin_state()
 
-            if time.time() >= self.time_left:
+            if self.time_left.is_finished():
                 sys.exit(1)
 
             # draw the super coins
@@ -422,12 +515,14 @@ class Game(arcade.Window):
                         )
                     x, y = self.pac_man_pos
                     if self.pac_man_pos in self.super_coins:
-                        # self.pac_man_invincible = True
                         self.pac_man_timer = time.time() + 5
                         self.super_coins.remove((x, y))
                         self.score += self.dicr['points_per_super_pacgum']
                         self.remaining_super_points -= 1
                         for g in self.ghosts:
+                            g.timer = CountdownTimer(5)
+                            if not g.timer.running:
+                                g.timer.start()
                             g.is_edible = True
             self.super_actual_coins_state = self.super_coin_state()
 
@@ -450,9 +545,9 @@ class Game(arcade.Window):
 
             # draw ghosts
             for g in self.ghosts:
-                if g.is_edible and self.pac_man_timer > time.time() + 2:
+                if g.is_edible and g.timer.time_left() > 2:
                     g.color = "blue"
-                elif g.is_edible and self.pac_man_timer <= time.time() + 2 and self.pac_man_timer > time.time():
+                elif g.is_edible and g.timer.time_left() <= 2 and g.timer.time_left() > 0:
                     colors = ["blue", g.originalColor]
                     if math.floor(time.time() * 10) % 2 == 0:
                         g.color = colors[0]
@@ -530,7 +625,7 @@ class Game(arcade.Window):
             16
         )
         timer_text = arcade.Text(
-            f"{math.floor(self.time_left - time.time()) // 60}:{math.floor(self.time_left - time.time()) % 60}",
+            f"{math.floor(self.time_left.time_left()) // 60}:{math.floor(self.time_left.time_left()) % 60}",
             1850, 10,
             arcade.color.WHITE,
             16

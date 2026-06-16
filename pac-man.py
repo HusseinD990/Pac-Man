@@ -21,9 +21,9 @@ if __name__ == "__main__":
             h += 1
         game = Game(grids, dicr)
         game.run()
-    except ValueError as e:
-        print(e)
+    # except ValueError as e:
+    #     print(e)
     except KeyboardInterrupt:
         print("\nNOOOOOOO the code was killed")
-    except Exception as e:
-        print(e)
+    # except Exception as e:
+    #     print(e)
