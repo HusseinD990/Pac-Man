@@ -479,6 +479,7 @@ class Game(arcade.Window):
                             self.ghosts = self.init_phantome()
                             self.valid_camera = self.__width > 37 or self.__height >= 20
                             self.time_left = CountdownTimer(self.dicr["level_max_time"])
+                            self.time_left.start()
 
                     if self.coins[row_idx][col_idx] == 1:
                         x, y = self._get_screen_pos(col_idx, row_idx)
