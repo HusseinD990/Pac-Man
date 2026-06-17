@@ -247,8 +247,11 @@ class Game(arcade.Window):
         self.valid_camera = self.__width > 37 or self.__height >= 20
         self.score = 0
         self.time_left = CountdownTimer(dicr["level_max_time"])
+        self.intro_timer = CountdownTimer(4.1)
+        self.intro_timer.start()
         self.time_left.start()
         self.intro_sound = arcade.sound.load_sound("pacmanPack/pacman_intro.wav")
+        self.intro_sound.play()
         self.start = True
 
 
@@ -266,25 +269,26 @@ class Game(arcade.Window):
 
     # press on the keyboard
     def on_key_press(self, key, modifiers):
-        if self.pause:
-            if key == arcade.key.LEFT or key == arcade.key.A:
-                self.current_direction = "left"
-            elif key == arcade.key.RIGHT or key == arcade.key.D:
-                self.current_direction = "right"
-            elif key == arcade.key.UP or key == arcade.key.W:
-                self.current_direction = "up"
-            elif key == arcade.key.DOWN or key == arcade.key.S:
-                self.current_direction = "down"
-        if key == arcade.key.SPACE:
-            self.pause = not self.pause
-            if self.time_left.running:
-                self.time_left.pause()
-                for g in self.ghosts:
-                    g.timer.pause()
-            else:
-                self.time_left.resume()
-                for g in self.ghosts:
-                    g.timer.resume()
+        if self.intro_timer.is_finished():
+            if self.pause:
+                if key == arcade.key.LEFT or key == arcade.key.A:
+                    self.current_direction = "left"
+                elif key == arcade.key.RIGHT or key == arcade.key.D:
+                    self.current_direction = "right"
+                elif key == arcade.key.UP or key == arcade.key.W:
+                    self.current_direction = "up"
+                elif key == arcade.key.DOWN or key == arcade.key.S:
+                    self.current_direction = "down"
+            if key == arcade.key.SPACE:
+                self.pause = not self.pause
+                if self.time_left.running:
+                    self.time_left.pause()
+                    for g in self.ghosts:
+                        g.timer.pause()
+                else:
+                    self.time_left.resume()
+                    for g in self.ghosts:
+                        g.timer.resume()
 
 
     # scaling on the arcade screen
@@ -367,7 +371,7 @@ class Game(arcade.Window):
                     y -= 1/16
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 90
-        if self.pause:
+        if self.pause and self.intro_timer.is_finished():
             for g in self.ghosts:
                 possible_moves = []
                 if g.x % 1 == 0 and g.y % 1 == 0:
