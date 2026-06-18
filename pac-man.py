@@ -12,7 +12,7 @@ if __name__ == "__main__":
         w = dicr['width']
         h = dicr['height']
         grids = []
-        for i in range(4):
+        for i in range(2):
             my_maze = MazeGenerator((w, h), False, (0,0), (0,0), dicr['seed'])
             my_maze.generate(dicr['seed'])
             grid = my_maze.maze

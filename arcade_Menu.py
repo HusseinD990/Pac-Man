@@ -28,7 +28,7 @@ class MenuView(arcade.View):
             "Press Enter To Start",
             self.window.width / 2,
             self.window.height / 2 + 200,
-            color=arcade.color.WHITE,
+            color=arcade.color.CRIMSON,
             font_size=30,
             anchor_x="center",
             anchor_y="center"
@@ -123,6 +123,22 @@ class MenuView(arcade.View):
         self.hgihscores_x -= 5
         if self.hgihscores_x < -3130:
             self.hgihscores_x = SCREEN_WIDTH
+        
+
+        instructions_text = arcade.Text(
+            "Arrows or WASD to move\nSpace to pause\nEsc to exit",
+            self.window.width / 2,
+            self.window.height / 2 + 100,
+            color=arcade.color.WHITE,
+            font_size=16,
+            width=300,
+            anchor_x="center",
+            align="center",
+            anchor_y="center",
+            multiline=True
+        )
+
+        instructions_text.draw()
 
 
     def on_key_press(self, key, modifiers):

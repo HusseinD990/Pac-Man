@@ -6,6 +6,7 @@ import math
 import sys
 from collections import deque
 import json
+from arcade_Cheats import Cheats
 
 SCREEN_WIDTH = 2000
 SCREEN_HEIGHT = 1000
@@ -220,6 +221,7 @@ class Ghost:
 class Game(arcade.View):
     def __init__(self, grids: list[list[list[int]]], dicr: Dict) -> None:
         super().__init__()
+        self.cheats = Cheats()
         self.pause = True
         self.lives = dicr['lives']
         self.grids = grids
@@ -253,7 +255,6 @@ class Game(arcade.View):
         self.player = arcade.sound.play_sound(self.intro_sound)
         self.start = True
 
-
     def init_phantome(self):
         ghosts = []
         x, y = 0, 0
@@ -266,11 +267,40 @@ class Game(arcade.View):
         ghosts.append(Ghost(x, y, "yellow"))
         return ghosts
 
+    def switch_level(self):
+        self.current_level += 1
+        if self.current_level >= len(self.grids):
+            from arcade_Ending import EndView
+            self.window.show_view(EndView(self.score, self.dicr['highscore_filename'], self.grids, self.dicr))
+        else:
+            self.__height += 1
+            self.__width += 1
+            self.current_grid = self.grids[self.current_level]
+            self.coins, self.remaining_points = create_pac_gums(self.current_grid ,
+                self.dicr['pacgums'],
+                self.__height,
+                self.__width
+            )
+            self.pac_man_pos = get_pac_pan_pos(self.__width, self.__height)
+            self.walk = None
+            self.previous_direction = self.walk
+            self.current_direction = self.walk
+            self.pac_man_direction = 0
+            self.super_coins = [(0, 0), (0, self.__height - 1), (self.__width - 1, 0), (self.__width - 1, self.__height - 1)]
+            self.remaining_super_points = 4
+            self.ghosts = self.init_phantome()
+            self.valid_camera = self.__width > 37 or self.__height >= 20
+            self.time_left = CountdownTimer(self.dicr["level_max_time"])
+            self.time_left.start()
+
     # press on the keyboard
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.P:
-            if modifiers & 16:
-                self.player = arcade.sound.play_sound(self.intro_sound)
+        if key == arcade.key.F1:
+            self.lives += 1
+        if key == arcade.key.F2:
+            self.switch_level()
+        if key == arcade.key.F3:
+            self.cheats.speed = not self.cheats.speed
         if key == arcade.key.ESCAPE:
             self.window.close()
         if self.intro_timer.is_finished():
@@ -307,6 +337,15 @@ class Game(arcade.View):
 
 
     def on_update(self, delta_time: float):
+        def _move(c) -> float:
+            forbiden = [0.0625, 0.1875, 0.3125, 0.4375, 0.5625, 0.6875, 0.8125, 0.9375]
+            x = 1/16
+            if self.cheats.speed:
+                x = 1/8
+                if (abs(c - int(c)) in forbiden):
+                    x -= 1/16
+            return x
+
         x, y = self.pac_man_pos
         px, py = self._get_screen_pos(*self.pac_man_pos)
         if self.pause:
@@ -315,38 +354,38 @@ class Game(arcade.View):
             if self.walk != self.current_direction:
                 if opp(self.current_direction, self.walk):
                     if self.current_direction == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
-                        x -= 1/16
+                        x -= _move(x)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 180
                     if self.current_direction == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
-                        x += 1/16
+                        x += _move(x)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 0
                     if self.current_direction == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
-                        y += 1/16
+                        y += _move(y)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 270
                     if self.current_direction == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
-                        y -= 1/16
+                        y -= _move(y)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 90
                     self.walk = self.current_direction
                 else:
                     self.previous_direction = self.walk
                     if self.previous_direction == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
-                        x -= 1/16
+                        x -= _move(x)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 180
                     if self.previous_direction == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
-                        x += 1/16
+                        x += _move(x)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 0
                     if self.previous_direction == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
-                        y += 1/16
+                        y += _move(y)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 270
                     if self.previous_direction == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
-                        y -= 1/16
+                        y -= _move(y)
                         self.pac_man_pos = x, y
                         self.pac_man_direction = 90
                     if x % 1 == 0 and y % 1 == 0:
@@ -360,19 +399,19 @@ class Game(arcade.View):
                             self.walk = self.current_direction
             else:
                 if self.walk == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
-                    x -= 1/16
+                    x -= _move(x)
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 180
                 if self.walk == "right" and not self.current_grid[int(y)][math.floor(x)] & 2:
-                    x += 1/16
+                    x += _move(x)
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 0
                 if self.walk == "up" and not self.current_grid[math.floor(y)][int(x)] & 1:
-                    y += 1/16
+                    y += _move(y)
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 270
                 if self.walk == "down" and not self.current_grid[math.ceil(y)][int(x)] & 4:
-                    y -= 1/16
+                    y -= _move(y)
                     self.pac_man_pos = x, y
                     self.pac_man_direction = 90
         if self.pause and self.intro_timer.is_finished():
@@ -404,13 +443,13 @@ class Game(arcade.View):
                                 possible_moves.remove(next_step)
                             g.move = random.choice(possible_moves)
                 if g.move == "right":
-                    g.x += 1/32
+                    g.x += 1/16
                 if g.move == "left":
-                    g.x -= 1/32
+                    g.x -= 1/16
                 if g.move == "up":
-                    g.y += 1/32
+                    g.y += 1/16
                 if g.move == "down":
-                    g.y -= 1/32
+                    g.y -= 1/16
                 x, y = self.pac_man_pos
 
                 if x - 0.2 <= g.x <= x + 0.2 and y - 0.2 <= g.y <= y + 0.2:
@@ -469,28 +508,7 @@ class Game(arcade.View):
                             self.remaining_points -= 1
                             self.score += self.dicr['points_per_pacgum']
                         if self.remaining_points == 0 and self.remaining_super_points == 0:
-                            self.current_level += 1
-                            if self.current_level >= len(self.grids):
-                                sys.exit(0)
-                            self.__height += 1
-                            self.__width += 1
-                            self.current_grid = self.grids[self.current_level]
-                            self.coins, self.remaining_points = create_pac_gums(self.current_grid ,
-                                self.dicr['pacgums'],
-                                self.__height,
-                                self.__width
-                            )
-                            self.pac_man_pos = get_pac_pan_pos(self.__width, self.__height)
-                            self.walk = None
-                            self.previous_direction = self.walk
-                            self.current_direction = self.walk
-                            self.pac_man_direction = 0
-                            self.super_coins = [(0, 0), (0, self.__height - 1), (self.__width - 1, 0), (self.__width - 1, self.__height - 1)]
-                            self.remaining_super_points = 4
-                            self.ghosts = self.init_phantome()
-                            self.valid_camera = self.__width > 37 or self.__height >= 20
-                            self.time_left = CountdownTimer(self.dicr["level_max_time"])
-                            self.time_left.start()
+                            self.switch_level()
 
                     if self.coins[row_idx][col_idx] == 1:
                         x, y = self._get_screen_pos(col_idx, row_idx)
@@ -636,7 +654,7 @@ class Game(arcade.View):
             16
         )
         timer_text = arcade.Text(
-            f"{math.floor(self.time_left.time_left()) // 60}:{math.floor(self.time_left.time_left()) % 60}",
+            f"{math.floor(self.time_left.time_left()) // 60:02}:{math.floor(self.time_left.time_left()) % 60:02}",
             1850, 10,
             arcade.color.WHITE,
             16
