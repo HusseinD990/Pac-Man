@@ -1,9 +1,7 @@
 import arcade
 import json
-import arcade
-from typing import Dict
 from arcade_Game import swap_state, load_highscores, swap_color_state
-from arcade_Game import Ghost, Game
+from arcade_Game import Ghost
 
 SCREEN_WIDTH = 2000
 SCREEN_HEIGHT = 1000
@@ -28,7 +26,8 @@ class EndView(arcade.View):
         self.dicr = dicr
         self.score = score
         self.path = path
-        self.valid = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
+        self.valid = "abcdefghijklmnopqrstuvwxyz"
+        self.valid += "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
         self.pac_man_pos = (-10, self.window.height / 2 + 400)
         self.pac_man_state = swap_state()
         self.state = 0
@@ -51,7 +50,7 @@ class EndView(arcade.View):
             anchor_y="center"
         )
         text.draw()
-        
+
         p_sheet = arcade.SpriteSheet("pacmanPack/PacMan.png")
         colors = ["green", "red", "yellow", "orange"]
         i = 1
@@ -63,9 +62,9 @@ class EndView(arcade.View):
                     color
                 ))
                 i += 1
-        
+
         p_texture = p_sheet.get_texture_grid(
-            size=(16,16),
+            size=(16, 16),
             columns=8,
             count=8
         )
@@ -73,7 +72,7 @@ class EndView(arcade.View):
         p_rect = arcade.LBWH(
             left=x - CELL_SIZE/4,
             bottom=y - CELL_SIZE/2,
-            width=60, 
+            width=60,
             height=60
         )
         self.pac_man_pos = (x + self.modifier, y)
@@ -88,23 +87,27 @@ class EndView(arcade.View):
                     angle=0
                 )
         else:
-            arcade.draw_texture_rect(texture=p_texture[self.state], rect=p_rect)
-        
+            arcade.draw_texture_rect(
+                texture=p_texture[self.state],
+                rect=p_rect
+            )
+
         if x <= -250 and self.modifier < 0:
             self.modifier *= -1
             y -= 600
             self.pac_man_pos = (x, y)
-        
+
         for g in self.ghosts:
             g_sheet = arcade.SpriteSheet(f"pacmanPack/{g.color}Ghost.png")
-            g_textures = g_sheet.get_texture_grid(size=(16,16),
+            g_textures = g_sheet.get_texture_grid(
+                size=(16, 16),
                 columns=8,
                 count=8
             )
             g_rect = arcade.LBWH(
-                left=g.x - CELL_SIZE/4, 
-                bottom=g.y - CELL_SIZE/2, 
-                width=60, 
+                left=g.x - CELL_SIZE/4,
+                bottom=g.y - CELL_SIZE/2,
+                width=60,
                 height=60
             )
             arcade.draw_texture_rect(
