@@ -5,11 +5,20 @@ import time
 import math
 import sys
 from collections import deque
+import json
 
 SCREEN_WIDTH = 2000
 SCREEN_HEIGHT = 1000
 CELL_SIZE = 50
 
+
+def load_highscores(path):
+    with open(path, 'r') as f:
+        content = json.load(f)
+    sorted_content = dict(
+        sorted(content.items(), key=lambda item: item[1], reverse=True)
+    )
+    return sorted_content
 
 def swap_state():
     i = -1
@@ -161,7 +170,6 @@ class Ghost:
         self.original_x = x
         self.original_y = y
         self.is_edible = False
-        self.color_timer = swap_color_state()
 
     def find_path(self, grid, start, end, width, height):
         sx, sy = int(round(start[0])), int(round(start[1]))
@@ -209,14 +217,9 @@ class Ghost:
         return None
 
 
-class Cheats:
-    def __init__(self):
-        pass
-
-
-class Game(arcade.Window):
+class Game(arcade.View):
     def __init__(self, grids: list[list[list[int]]], dicr: Dict) -> None:
-        super().__init__(fullscreen=True, title= "Pac-Man")
+        super().__init__()
         self.pause = True
         self.lives = dicr['lives']
         self.grids = grids
@@ -225,14 +228,12 @@ class Game(arcade.Window):
         self.__width = dicr['width'] + self.current_level
         self.__height = dicr['height'] + self.current_level
         self.pac_man_pos = get_pac_pan_pos(self.__width, self.__height)
-        self.pac_man_next_pos = (0, 0)
         self.pac_man_state = swap_state()
         self.current_grid = grids[self.current_level]
         self.pac_man_direction = 0
         self.coins, self.remaining_points = create_pac_gums(self.current_grid ,dicr['pacgums'], self.__height, self.__width)
         self.coin_state = swap_coin_state()
         self.actual_coins_state = 0
-        self.pac_man_current_cell = self.pac_man_pos
         self.walk: str | None = None
         self.previous_direction = self.walk
         self.current_direction = self.walk
@@ -241,17 +242,15 @@ class Game(arcade.Window):
         self.super_actual_coins_state = 0
         self.remaining_super_points = 4
         self.ghosts = self.init_phantome()
-        self.pac_man_invincible = False
-        self.pac_man_timer = 0
         self.camera = arcade.camera.Camera2D()
         self.valid_camera = self.__width > 37 or self.__height >= 20
         self.score = 0
-        self.time_left = CountdownTimer(dicr["level_max_time"])
+        self.time_left = CountdownTimer(dicr["level_max_time"] + 5)
         self.intro_timer = CountdownTimer(4.1)
         self.intro_timer.start()
         self.time_left.start()
         self.intro_sound = arcade.sound.load_sound("pacmanPack/pacman_intro.wav")
-        self.intro_sound.play()
+        self.player = arcade.sound.play_sound(self.intro_sound)
         self.start = True
 
 
@@ -269,6 +268,11 @@ class Game(arcade.Window):
 
     # press on the keyboard
     def on_key_press(self, key, modifiers):
+        if key == arcade.key.P:
+            if modifiers & 16:
+                self.player = arcade.sound.play_sound(self.intro_sound)
+        if key == arcade.key.ESCAPE:
+            self.window.close()
         if self.intro_timer.is_finished():
             if self.pause:
                 if key == arcade.key.LEFT or key == arcade.key.A:
@@ -308,7 +312,7 @@ class Game(arcade.Window):
         if self.pause:
             if self.valid_camera:
                 self.camera.position = (px, py)
-            elif self.walk != self.current_direction:
+            if self.walk != self.current_direction:
                 if opp(self.current_direction, self.walk):
                     if self.current_direction == "left" and not self.current_grid[int(y)][math.ceil(x)] & 8:
                         x -= 1/16
@@ -411,11 +415,13 @@ class Game(arcade.Window):
 
                 if x - 0.2 <= g.x <= x + 0.2 and y - 0.2 <= g.y <= y + 0.2:
                     if not g.is_edible:
+                        arcade.sound.stop_sound(self.player)
                         self.lives -= 1
                         self.ghosts = self.init_phantome()
                         self.pac_man_pos = get_pac_pan_pos(self.__width, self.__height)
                         if self.lives == 0:
-                            sys.exit(0)
+                            from arcade_Ending import EndView
+                            self.window.show_view(EndView(self.score, self.dicr['highscore_filename'], self.grids, self.dicr))
         for g in self.ghosts:
             if g.timer.is_finished():
                 g.is_edible = False
@@ -456,7 +462,8 @@ class Game(arcade.Window):
             # draw the coins
             for row_idx in range(len(self.coins)):
                 for col_idx in range(len(self.coins[row_idx])):
-                    if self.pac_man_pos == (col_idx, row_idx):
+                    px, py = self.pac_man_pos
+                    if col_idx - 0.2 <= px <= col_idx + 0.2 and row_idx - 0.2 <= py <= row_idx + 0.2:
                         if self.coins[row_idx][col_idx] == 1:
                             self.coins[row_idx][col_idx] = 0
                             self.remaining_points -= 1
@@ -520,7 +527,6 @@ class Game(arcade.Window):
                         )
                     x, y = self.pac_man_pos
                     if self.pac_man_pos in self.super_coins:
-                        self.pac_man_timer = time.time() + 5
                         self.super_coins.remove((x, y))
                         self.score += self.dicr['points_per_super_pacgum']
                         self.remaining_super_points -= 1
