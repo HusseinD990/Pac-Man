@@ -2,13 +2,21 @@ import arcade
 import json
 from arcade_Game import swap_state, load_highscores, swap_color_state
 from arcade_Game import Ghost
+from typing import Dict, Any, List
 
 SCREEN_WIDTH = 2000
 SCREEN_HEIGHT = 1000
 CELL_SIZE = 50
 
 
-def add_score(path, name, score):
+def add_score(path: str, name: str, score: int) -> None:
+    """Store a player's score in the high-score file.
+
+    Args:
+        path: Path to the JSON high-score file.
+        name: Player name.
+        score: Score achieved by the player.
+    """
     with open(path, 'r') as f:
         data = json.load(f)
 
@@ -19,7 +27,20 @@ def add_score(path, name, score):
 
 
 class EndView(arcade.View):
-    def __init__(self, score, path, grids, dicr):
+    """Game-over view.
+
+    Allows the player to enter their name and save
+    their score to the high-score table.
+    """
+    def __init__(self, score: int, path: str, grids: Any, dicr: Dict) -> None:
+        """Initialize the end screen.
+
+        Args:
+            score: Final player score.
+            path: Path to the high-score file.
+            grids: List of game levels.
+            dicr: Game configuration dictionary.
+        """
         super().__init__()
         self.name = ""
         self.grids = grids
@@ -34,10 +55,11 @@ class EndView(arcade.View):
         self.modifier = 8
         self.g_modifier = 8
         self.g_state = swap_color_state()
-        self.ghosts = []
+        self.ghosts: List[Ghost] = []
         self.hgihscores_x = SCREEN_WIDTH
 
-    def on_draw(self):
+    def on_draw(self) -> None:
+        """Render the end screen and animations."""
         self.clear()
 
         text = arcade.Text(
@@ -144,16 +166,28 @@ class EndView(arcade.View):
         if self.hgihscores_x < -3130:
             self.hgihscores_x = SCREEN_WIDTH
 
-    def on_text(self, text):
+    def on_text(self, text: str) -> None:
+        """Handle text entered by the player.
+
+        Args:
+            text: Character entered by the user.
+        """
         if len(self.name) < 10 and text in self.valid:
             self.name += text
 
-    def on_key_press(self, key, modifiers):
+    def on_key_press(self, key: Any, modifiers: Any) -> None:
+        """Handle keyboard input on the end screen.
+
+        Args:
+            key: Key pressed by the user.
+            modifiers: Active modifier keys.
+        """
         if key == arcade.key.BACKSPACE:
             self.name = self.name[:-1]
 
         elif key == arcade.key.ENTER:
-            add_score(self.path, self.name, self.score)
+            if self.name.strip():
+                add_score(self.path, self.name, self.score)
             from arcade_Menu import MenuView
             self.window.show_view(MenuView(self.grids, self.dicr))
         if key == arcade.key.ESCAPE:

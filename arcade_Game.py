@@ -1,5 +1,5 @@
 import arcade
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Callable, Any, List
 import random
 import time
 import math
@@ -13,7 +13,15 @@ SCREEN_HEIGHT = 1000
 CELL_SIZE = 50
 
 
-def load_highscores(path):
+def load_highscores(path: str) -> Dict:
+    """Load and sort high scores from a JSON file.
+
+    Args:
+        path: Path to the high-score file.
+
+    Returns:
+        Dictionary sorted by descending score.
+    """
     with open(path, 'r') as f:
         content = json.load(f)
     sorted_content = dict(
@@ -22,11 +30,16 @@ def load_highscores(path):
     return sorted_content
 
 
-def swap_state():
+def swap_state() -> Callable:
+    """Create a Pac-Man animation state generator.
+
+    Returns:
+        A callable that returns the next animation frame index.
+    """
     i = -1
     timer = 0
 
-    def update_state():
+    def update_state() -> int:
         nonlocal i
         nonlocal timer
         if timer == 4:
@@ -39,11 +52,16 @@ def swap_state():
     return update_state
 
 
-def swap_coin_state():
+def swap_coin_state() -> Callable:
+    """Create a coin animation state generator.
+
+    Returns:
+        A callable that returns the next coin frame index.
+    """
     i = -1
     timer = 0
 
-    def update_coin_state():
+    def update_coin_state() -> int:
         nonlocal i
         nonlocal timer
         if timer == 8:
@@ -56,11 +74,16 @@ def swap_coin_state():
     return update_coin_state
 
 
-def swap_color_state():
+def swap_color_state() -> Callable:
+    """Create a ghost color animation state generator.
+
+    Returns:
+        A callable that alternates between ghost color frames.
+    """
     i = -1
     timer = 0
 
-    def update_color_state():
+    def update_color_state() -> int:
         nonlocal i
         nonlocal timer
         if timer == 8:
@@ -73,11 +96,16 @@ def swap_color_state():
     return update_color_state
 
 
-def swap_super_coin_state():
+def swap_super_coin_state() -> Callable:
+    """Create a super coin animation state generator.
+
+    Returns:
+        A callable that returns the next super coin frame index.
+    """
     i = -1
     timer = 0
 
-    def update_super_coin_state():
+    def update_super_coin_state() -> int:
         nonlocal i
         nonlocal timer
         if timer == 6:
@@ -90,7 +118,21 @@ def swap_super_coin_state():
     return update_super_coin_state
 
 
-def create_pac_gums(grid, nb_pac_gums, height, width):
+def create_pac_gums(
+        grid: Any, nb_pac_gums: int, height: int, width: int
+        ) -> tuple:
+    """Generate collectible pac-gums on the map.
+
+    Args:
+        grid: Current level grid.
+        nb_pac_gums: Desired number of pac-gums.
+        height: Grid height.
+        width: Grid width.
+
+    Returns:
+        A tuple containing the coin matrix and the actual
+        number of generated pac-gums.
+    """
     forbiden = [
         (0, 0),
         (height - 1, 0),
@@ -118,7 +160,16 @@ def create_pac_gums(grid, nb_pac_gums, height, width):
     return coins, nb_pac_gums
 
 
-def opp(cur, prev) -> None:
+def opp(cur: str, prev: str) -> bool:
+    """Determine whether two directions are opposites.
+
+    Args:
+        cur: Current direction.
+        prev: Previous direction.
+
+    Returns:
+        True if the directions are opposite, otherwise False.
+    """
     if cur == "down" and prev == "up":
         return True
     if cur == "up" and prev == "down":
@@ -130,7 +181,16 @@ def opp(cur, prev) -> None:
     return False
 
 
-def get_pac_pan_pos(width, height):
+def get_pac_pan_pos(width: int, height: int) -> tuple:
+    """Compute the starting position of Pac-Man.
+
+    Args:
+        width: Level width.
+        height: Level height.
+
+    Returns:
+        Coordinates of the starting position.
+    """
     ft_small = [[1, 0, 0, 0, 1, 1, 1],
                 [1, 0, 0, 0, 0, 0, 1],
                 [1, 1, 1, 0, 1, 1, 1],
@@ -145,56 +205,98 @@ def get_pac_pan_pos(width, height):
 
 
 class CountdownTimer:
-    def __init__(self, seconds):
+    """Simple countdown timer with pause and resume support."""
+    def __init__(self, seconds: float) -> None:
+        """Initialize the timer."""
         self.initial = seconds
         self.remaining = seconds
-        self._start = None
+        self._start = 0.0
         self.running = False
 
-    def start(self):
+    def start(self) -> None:
+        """Start the timer."""
         self._start = time.perf_counter()
         self.remaining = self.initial
         self.running = True
 
-    def pause(self):
+    def pause(self) -> None:
+        """Pause the timer."""
         if self.running:
             self.remaining -= time.perf_counter() - self._start
             self.running = False
 
-    def resume(self):
+    def resume(self) -> None:
+        """Resume a paused timer."""
         if not self.running:
             self._start = time.perf_counter()
             self.running = True
 
-    def time_left(self):
+    def time_left(self) -> float:
+        """Get the remaining time.
+
+        Returns:
+            Number of seconds remaining.
+        """
         if self.running:
             return max(0, self.remaining - (time.perf_counter() - self._start))
         return max(0, self.remaining)
 
-    def is_finished(self):
+    def is_finished(self) -> bool:
+        """Check whether the timer has expired.
+
+        Returns:
+            True if no time remains, otherwise False.
+        """
         return self.time_left() <= 0
 
 
 class Ghost:
-    def __init__(self, x, y, color):
-        self.x = x
-        self.y = y
+    """Represents a ghost enemy in the Pac-Man game."""
+    def __init__(self, x: int, y: int, color: str) -> None:
+        """Initialize a ghost.
+
+        Args:
+            x: Initial x-coordinate.
+            y: Initial y-coordinate.
+            color: Ghost color.
+        """
+        self.x = float(x)
+        self.y = float(y)
         self.timer = CountdownTimer(5)
         self.move = ""
         self.originalColor = color
         self.color = color
         self.is_alive = True
-        self.life_timer = 0
+        self.life_timer = 0.0
         self.original_x = x
         self.original_y = y
         self.is_edible = False
 
-    def find_path(self, grid, start, end, width, height):
+    def find_path(
+            self,
+            grid: Any,
+            start: tuple,
+            end: tuple, width: int,
+            height: int
+            ) -> Any:
+        """Find the next move toward a target using BFS.
+
+        Args:
+            grid: Maze grid.
+            start: Ghost position.
+            end: Target position.
+            width: Grid width.
+            height: Grid height.
+
+        Returns:
+            Direction of the first step in the shortest path,
+            or an empty string if no path exists.
+        """
         sx, sy = int(round(start[0])), int(round(start[1]))
         ex, ey = int(round(end[0])),   int(round(end[1]))
 
         if (sx, sy) == (ex, ey):
-            return None
+            return ""
 
         directions = [
             (0,  1, "up",    1),
@@ -203,9 +305,9 @@ class Ghost:
             (-1,  0, "left",  8),
         ]
 
-        queue = deque()
+        queue: deque = deque()
         visited = set()
-        parent = {}
+        parent: Dict = {}
 
         queue.append((sx, sy))
         visited.add((sx, sy))
@@ -232,11 +334,18 @@ class Ghost:
                         visited.add((nx, ny))
                         parent[(nx, ny)] = ((x, y), letter)
 
-        return None
+        return ""
 
 
 class Game(arcade.View):
+    """Main game view containing all gameplay logic."""
     def __init__(self, grids: list[list[list[int]]], dicr: Dict) -> None:
+        """Initialize a new game session.
+
+        Args:
+            grids: List of level layouts.
+            dicr: Game configuration dictionary.
+        """
         super().__init__()
         self.cheats = Cheats()
         self.pause = True
@@ -258,7 +367,7 @@ class Game(arcade.View):
         )
         self.coin_state = swap_coin_state()
         self.actual_coins_state = 0
-        self.walk: str | None = None
+        self.walk: str = ""
         self.previous_direction = self.walk
         self.current_direction = self.walk
         mod = self.current_level
@@ -279,13 +388,28 @@ class Game(arcade.View):
         self.intro_timer = CountdownTimer(4.1)
         self.intro_timer.start()
         self.time_left.start()
+        self.winning_sound = arcade.sound.load_sound(
+            "pacmanPack/winning.wav"
+        )
+        self.super_coin_sound = arcade.sound.load_sound(
+            "pacmanPack/super_coin.wav"
+        )
         self.intro_sound = arcade.sound.load_sound(
             "pacmanPack/pacman_intro.wav"
         )
+        self.eaten_sound = arcade.sound.load_sound(
+            "pacmanPack/vine-boom.wav"
+        )
         self.player = arcade.sound.play_sound(self.intro_sound)
         self.start = True
+        self.coin_sound = arcade.sound.load_sound("pacmanPack/coin.wav")
 
-    def init_phantome(self):
+    def init_phantome(self) -> List[Ghost]:
+        """Create and position all ghosts.
+
+        Returns:
+            List of initialized ghosts.
+        """
         ghosts = []
         x, y = 0, 0
         ghosts.append(Ghost(x, y, "red"))
@@ -297,9 +421,13 @@ class Game(arcade.View):
         ghosts.append(Ghost(x, y, "yellow"))
         return ghosts
 
-    def switch_level(self):
+    def switch_level(self) -> None:
+        """Advance to the next level or finish the game."""
         self.current_level += 1
         if self.current_level >= len(self.grids):
+            if self.player:
+                arcade.sound.stop_sound(self.player)
+            arcade.sound.play_sound(self.winning_sound)
             from arcade_Ending import EndView
             self.window.show_view(EndView(
                 self.score,
@@ -318,7 +446,7 @@ class Game(arcade.View):
                 self.__width
             )
             self.pac_man_pos = get_pac_pan_pos(self.__width, self.__height)
-            self.walk = None
+            self.walk = ""
             self.previous_direction = self.walk
             self.current_direction = self.walk
             self.pac_man_direction = 0
@@ -333,7 +461,13 @@ class Game(arcade.View):
             self.time_left.start()
 
     # press on the keyboard
-    def on_key_press(self, key, modifiers):
+    def on_key_press(self, key: Any, modifiers: Any) -> None:
+        """Handle keyboard input during gameplay.
+
+        Args:
+            key: Key pressed by the player.
+            modifiers: Active modifier keys.
+        """
         if key == arcade.key.F1:
             self.lives += 1
         if key == arcade.key.F2:
@@ -378,7 +512,16 @@ class Game(arcade.View):
                         g.timer.resume()
 
     # scaling on the arcade screen
-    def _get_screen_pos(self, x: int, y: int) -> Tuple[float, float]:
+    def _get_screen_pos(self, x: float, y: float) -> Tuple[float, float]:
+        """Convert grid coordinates to screen coordinates.
+
+        Args:
+            x: Grid x-coordinate.
+            y: Grid y-coordinate.
+
+        Returns:
+            Screen-space coordinates.
+        """
         num_rows = len(self.current_grid)
         num_cols = len(self.current_grid[0])
         total_grid_width = num_cols * CELL_SIZE
@@ -387,8 +530,13 @@ class Game(arcade.View):
         start_y = (SCREEN_HEIGHT / 2) - (total_grid_height / 2)
         return (start_x + (x * CELL_SIZE), start_y + (y * CELL_SIZE))
 
-    def on_update(self, delta_time: float):
-        def _move(c) -> float:
+    def on_update(self, delta_time: float) -> None:
+        """Update game state.
+
+        Args:
+            delta_time: Time elapsed since the previous frame.
+        """
+        def _move(c: float) -> float:
             forbiden = [0.0625,
                         0.1875,
                         0.3125,
@@ -561,8 +709,8 @@ class Game(arcade.View):
 
                 if x - 0.2 <= g.x <= x + 0.2 and y - 0.2 <= g.y <= y + 0.2:
                     if not g.is_edible and not self.cheats.invincibility:
-                        arcade.sound.stop_sound(self.player)
                         self.lives -= 1
+                        arcade.sound.play_sound(self.eaten_sound)
                         self.ghosts = self.init_phantome()
                         self.pac_man_pos = get_pac_pan_pos(
                             self.__width,
@@ -579,7 +727,8 @@ class Game(arcade.View):
             if g.timer.is_finished():
                 g.is_edible = False
 
-    def on_draw(self):
+    def on_draw(self) -> None:
+        """Render the current game state."""
         self.clear()
 
         with self.camera.activate():
@@ -603,32 +752,63 @@ class Game(arcade.View):
                 for col_idx, col in enumerate(row):
                     x, y = self._get_screen_pos(col_idx, row_idx)
                     if grid[row_idx][col_idx] & 1:
-                        arcade.draw_line(x - CELL_SIZE/2, y + CELL_SIZE/2, x + CELL_SIZE/2, y + CELL_SIZE/2, arcade.color.NEON_GREEN, 5)
+                        arcade.draw_line(
+                            x - CELL_SIZE/2,
+                            y + CELL_SIZE/2,
+                            x + CELL_SIZE/2,
+                            y + CELL_SIZE/2,
+                            arcade.color.NEON_GREEN, 5
+                        )
                     if grid[row_idx][col_idx] & 2:
-                        arcade.draw_line(x + CELL_SIZE/2, y - CELL_SIZE/2, x + CELL_SIZE/2, y + CELL_SIZE/2, arcade.color.NEON_GREEN, 5)
+                        arcade.draw_line(
+                            x + CELL_SIZE/2,
+                            y - CELL_SIZE/2,
+                            x + CELL_SIZE/2,
+                            y + CELL_SIZE/2,
+                            arcade.color.NEON_GREEN, 5
+                        )
                     if grid[row_idx][col_idx] & 4:
-                        arcade.draw_line(x - CELL_SIZE/2, y - CELL_SIZE/2 , x + CELL_SIZE/2, y - CELL_SIZE/2 , arcade.color.NEON_GREEN, 5)
+                        arcade.draw_line(
+                            x - CELL_SIZE/2,
+                            y - CELL_SIZE/2,
+                            x + CELL_SIZE/2,
+                            y - CELL_SIZE/2,
+                            arcade.color.NEON_GREEN, 5
+                        )
                     if grid[row_idx][col_idx] & 8:
-                        arcade.draw_line(x - CELL_SIZE/2 , y - CELL_SIZE/2 , x - CELL_SIZE/2 , y + CELL_SIZE/2, arcade.color.NEON_GREEN, 5)
+                        arcade.draw_line(
+                            x - CELL_SIZE/2,
+                            y - CELL_SIZE/2,
+                            x - CELL_SIZE/2,
+                            y + CELL_SIZE/2,
+                            arcade.color.NEON_GREEN, 5
+                        )
 
             # draw the coins
             for row_idx in range(len(self.coins)):
                 for col_idx in range(len(self.coins[row_idx])):
                     px, py = self.pac_man_pos
-                    if col_idx - 0.2 <= px <= col_idx + 0.2 and row_idx - 0.2 <= py <= row_idx + 0.2:
+                    if (
+                        col_idx - 0.2 <= px <= col_idx + 0.2 and
+                        row_idx - 0.2 <= py <= row_idx + 0.2
+                    ):
                         if self.coins[row_idx][col_idx] == 1:
                             self.coins[row_idx][col_idx] = 0
+                            arcade.sound.play_sound(self.coin_sound)
                             self.remaining_points -= 1
                             self.score += self.dicr['points_per_pacgum']
-                        if self.remaining_points == 0 and self.remaining_super_points == 0:
+                        if (
+                            self.remaining_points == 0 and
+                            self.remaining_super_points == 0
+                        ):
                             self.switch_level()
 
                     if self.coins[row_idx][col_idx] == 1:
                         x, y = self._get_screen_pos(col_idx, row_idx)
                         coin_rect = arcade.LBWH(
-                            left=x - CELL_SIZE/4, 
-                            bottom=y - CELL_SIZE/4, 
-                            width=50 - CELL_SIZE/2, 
+                            left=x - CELL_SIZE/4,
+                            bottom=y - CELL_SIZE/4,
+                            width=50 - CELL_SIZE/2,
                             height=50 - CELL_SIZE/2
                         )
                         arcade.draw_texture_rect(
@@ -646,14 +826,16 @@ class Game(arcade.View):
                     if (col_idx, row_idx) in self.super_coins:
                         x, y = self._get_screen_pos(col_idx, row_idx)
                         super_coin_rect = arcade.LBWH(
-                            left=x - CELL_SIZE/4 - 3, 
-                            bottom=y - CELL_SIZE/4 - 3, 
-                            width=55 - CELL_SIZE/2, 
+                            left=x - CELL_SIZE/4 - 3,
+                            bottom=y - CELL_SIZE/4 - 3,
+                            width=55 - CELL_SIZE/2,
                             height=55 - CELL_SIZE/2
                         )
 
                         arcade.draw_texture_rect(
-                            texture=super_coin_textures[self.super_actual_coins_state],
+                            texture=super_coin_textures[
+                                self.super_actual_coins_state
+                            ],
                             rect=super_coin_rect
                         )
                     x, y = self.pac_man_pos
@@ -661,6 +843,7 @@ class Game(arcade.View):
                         self.super_coins.remove((x, y))
                         self.score += self.dicr['points_per_super_pacgum']
                         self.remaining_super_points -= 1
+                        arcade.sound.play_sound(self.super_coin_sound)
                         for g in self.ghosts:
                             g.timer = CountdownTimer(5)
                             if not g.timer.running:
@@ -674,14 +857,14 @@ class Game(arcade.View):
             sheet = arcade.SpriteSheet("pacmanPack/PacMan.png")
             textures = sheet.get_texture_grid(
                 size=(16, 16),
-                columns=8, 
+                columns=8,
                 count=8
             )
 
             pacman_rect = arcade.LBWH(
-                left=x - CELL_SIZE/4, 
-                bottom=y - CELL_SIZE/4, 
-                width=45 - CELL_SIZE/2, 
+                left=x - CELL_SIZE/4,
+                bottom=y - CELL_SIZE/4,
+                width=45 - CELL_SIZE/2,
                 height=45 - CELL_SIZE/2
             )
 
@@ -689,7 +872,11 @@ class Game(arcade.View):
             for g in self.ghosts:
                 if g.is_edible and g.timer.time_left() > 2:
                     g.color = "blue"
-                elif g.is_edible and g.timer.time_left() <= 2 and g.timer.time_left() > 0:
+                elif (
+                    g.is_edible and
+                    g.timer.time_left() <= 2 and
+                    g.timer.time_left() > 0
+                ):
                     colors = ["blue", g.originalColor]
                     if math.floor(time.time() * 10) % 2 == 0:
                         g.color = colors[0]
@@ -706,9 +893,9 @@ class Game(arcade.View):
                 )
 
                 rect = arcade.LBWH(
-                    left=tempx - CELL_SIZE/4, 
-                    bottom=tempy - CELL_SIZE/4, 
-                    width=50 - CELL_SIZE/2, 
+                    left=tempx - CELL_SIZE/4,
+                    bottom=tempy - CELL_SIZE/4,
+                    width=50 - CELL_SIZE/2,
                     height=50 - CELL_SIZE/2
                 )
                 if g.is_alive:
@@ -717,8 +904,12 @@ class Game(arcade.View):
                         rect=rect,
                     )
 
-                px, py = self.pac_man_pos 
-                if g.is_edible and px - 0.2 <= g.x <= px + 0.2 and py - 0.2 <= g.y <= py + 0.2:
+                px, py = self.pac_man_pos
+                if (
+                    g.is_edible and
+                    px - 0.2 <= g.x <= px + 0.2 and
+                    py - 0.2 <= g.y <= py + 0.2
+                ):
                     g.x = -1
                     g.y = -1
                     g.is_alive = False
@@ -746,13 +937,6 @@ class Game(arcade.View):
                     angle=0
                 )
 
-        # arcade.draw_text(
-        #     self.score,
-        #     10, 10,          # x, y position
-        #     arcade.color.NEON_GREEN,
-        #     16
-        # )
-
         score_text = arcade.Text(
             f"Score: {self.score}",
             10, 10,
@@ -767,7 +951,8 @@ class Game(arcade.View):
             16
         )
         timer_text = arcade.Text(
-            f"{math.floor(self.time_left.time_left()) // 60:02}:{math.floor(self.time_left.time_left()) % 60:02}",
+            f"{math.floor(self.time_left.time_left()) // 60:02}"
+            f":{math.floor(self.time_left.time_left()) % 60:02}",
             1850, 10,
             arcade.color.WHITE,
             16

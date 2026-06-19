@@ -1,13 +1,32 @@
 import json
-from typing import Dict
+from typing import Any
+
 
 class Parsing():
+    """Parse and validate the game's configuration file."""
     def __init__(self, path: str) -> None:
+        """Initialize the parser.
+
+        Args:
+            path: Path to the configuration file.
+        """
         self.path = path
         if not self.path.endswith(".json"):
             raise ValueError("Error: Configuration file should be JSON")
 
-    def parse(self) -> Dict:
+    def parse(self) -> Any:
+        """Load and validate the configuration file.
+
+        Checks that all required keys are present exactly once and
+        verifies that configuration values satisfy the game's
+        constraints.
+
+        Returns:
+            The validated configuration data.
+
+        Raises:
+            ValueError: If the configuration file is invalid.
+        """
         keys = {
             "highscore_filename": 0,
             "width": 0,
@@ -43,16 +62,21 @@ class Parsing():
                     if not isinstance(numeric_value, int):
                         raise ValueError(f"Error: Invalid value for {key}")
                     if numeric_value <= 0 and key != "seed":
-                        raise ValueError(f"Error: Invalid value, {key} should be greater than 0")
+                        raise ValueError(
+                            f"Error: Invalid value, "
+                            f"{key} should be greater than 0")
                     if key == "width" or key == "height":
                         if numeric_value < 3:
-                            raise ValueError(f"Error: Invalid value, {key} should be greater than 2")
+                            raise ValueError(
+                                f"Error: Invalid value,"
+                                f" {key} should be greater than 2"
+                            )
 
             data = json.loads("".join(lines))
-        
+
         for k, v in keys.items():
-            if v == 0 :
+            if v == 0:
                 raise ValueError(f"Error: {k} is missing")
-            if v > 1 :
+            if v > 1:
                 raise ValueError(f"Error: {k} is duplicated")
         return data

@@ -12,8 +12,10 @@ if __name__ == "__main__":
         w = dicr['width']
         h = dicr['height']
         grids = []
-        for i in range(2):
-            my_maze = MazeGenerator((w, h), False, (0,0), (0,0), dicr['seed'])
+        for i in range(10):
+            my_maze = MazeGenerator(
+                (w, h), False, (0, 0), (0, 0), dicr['seed']
+            )
             my_maze.generate(dicr['seed'])
             grid = my_maze.maze
             grid = grid[::-1]
@@ -28,5 +30,5 @@ if __name__ == "__main__":
         print(e)
     except KeyboardInterrupt:
         print("\nNOOOOOOO the process was killed")
-    # except Exception as e:
-    #     print(e)
+    except Exception as e:
+        print(e)
