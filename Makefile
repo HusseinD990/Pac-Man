@@ -1,18 +1,17 @@
 PYTHON      := python3
-PIP         := pip
-MAIN        := pac-man.py
+MAIN        := main.py
 CON         := config.json
 
 .DEFAULT_GOAL := run
 
 install:
-	$(PIP) install -r requirements.txt
+	uv sync
 
 debug:
-	$(PYTHON) -m pdb $(MAIN) $(CON)
+	uv run -m pdb $(MAIN) $(CON)
 
 run:
-	$(PYTHON) $(MAIN) $(CON)
+	uv run $(MAIN) $(CON)
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
