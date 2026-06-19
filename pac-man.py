@@ -30,5 +30,5 @@ if __name__ == "__main__":
         print(e)
     except KeyboardInterrupt:
         print("\nNOOOOOOO the process was killed")
-    except Exception as e:
-        print(e)
+    # except Exception as e:
+    #     print(e)

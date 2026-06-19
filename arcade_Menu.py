@@ -124,7 +124,7 @@ class MenuView(arcade.View):
                     g2.color = colors[0]
                     colors.pop(0)
             g.x += self.g_modifier
-        content = load_highscores("highscore.json")
+        content = load_highscores(self.dicr["highscore_filename"])
         s = ""
         i = 1
         for scorer, high_score in content.items():

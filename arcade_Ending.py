@@ -19,8 +19,9 @@ def add_score(path: str, name: str, score: int) -> None:
     """
     with open(path, 'r') as f:
         data = json.load(f)
-
-    data[name] = score
+    val = data.get(name, 0)
+    if score > val:
+        data[name] = score
 
     with open(path, 'w') as f:
         json.dump(data, f, indent=4)
@@ -147,7 +148,7 @@ class EndView(arcade.View):
                     g2.color = colors[0]
                     colors.pop(0)
             g.x += self.g_modifier
-        content = load_highscores("highscore.json")
+        content = load_highscores(self.dicr["highscore_filename"])
         s = ""
         i = 1
         for scorer, high_score in content.items():

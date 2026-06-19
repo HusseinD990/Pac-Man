@@ -4,6 +4,7 @@ import random
 import time
 import math
 import sys
+from pathlib import Path
 from collections import deque
 import json
 from arcade_Cheats import Cheats
@@ -22,12 +23,25 @@ def load_highscores(path: str) -> Dict:
     Returns:
         Dictionary sorted by descending score.
     """
-    with open(path, 'r') as f:
-        content = json.load(f)
-    sorted_content = dict(
-        sorted(content.items(), key=lambda item: item[1], reverse=True)
-    )
-    return sorted_content
+    p = Path(path)
+
+    if not p.exists():
+        p.write_text("{}")
+        return {}
+
+    if p.stat().st_size == 0:
+        return {}
+
+    try:
+        with p.open("r") as f:
+            content = json.load(f)
+
+        return dict(
+            sorted(content.items(), key=lambda item: item[1], reverse=True)
+        )
+
+    except json.JSONDecodeError:
+        return {}
 
 
 def swap_state() -> Callable:
