@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by <hdaoun>[, <mrammal>].*
+*This project has been created as part of the 42 curriculum by \<hdaoun\>, \<mrammal\>.*
 
 # Pac-Man
 
@@ -13,9 +13,7 @@ The goal was to rebuild the original game loop — maze, pacgums, super-pacgums,
 ### Requirements
 
 - Python 3.10+
-- [Arcade](https://api.arcade.academy/) (`pip install arcade`)
 - The assigned `a-maze-ing` package (see [Maze Generation](#maze-generation))
-- [PLACEHOLDER: any other dependency, e.g. `pip install -r requirements.txt`]
 
 ### Installation
 
@@ -26,7 +24,7 @@ make install
 ### Running the game
 
 ```bash
-python3 pac-man.py config.json
+python3 main.py config.json
 ```
 
 or via the Makefile:
@@ -60,7 +58,6 @@ argument. `#`-prefixed lines are treated as comments and ignored.
 
 ```jsonc
 {
-  # Example configuration
   "highscore_filename": "highscores.json",
   "lives": 3,
   "pacgum": 42,
@@ -72,88 +69,67 @@ argument. `#`-prefixed lines are treated as comments and ignored.
 }
 ```
 
-| Key | Type | Default | Description |
-|-----|------|---------|--------------|
-| `highscore_filename` | `str` | `"highscores.json"` | File used to persist the highscore table |
-| `lives` | `int` | `3` | Starting number of player lives |
-| `pacgum` | `int` | `42` | [PLACEHOLDER: clarify usage] |
-| `points_per_pacgum` | `int` | `10` | Points earned per pacgum eaten |
-| `points_per_super_pacgum` | `int` | `50` | Points earned per super-pacgum eaten |
-| `points_per_ghost` | `int` | `200` | Points earned per edible ghost eaten |
-| `seed` | `int` | `42` | Seed used to generate the first level's maze |
-| `level_max_time` | `int` | `90` | Time limit (seconds) per level |
-| `levels` | `list` | `[]` | List of `{width, height}` objects, one per level |
+| Key | Type | Description |
+|-----|------|--------------|
+| `highscore_filename` | `str` | File used to persist the highscore table |
+| `lives` | `int` | Starting number of player lives |
+| `pacgum` | `int` | Number of pacgums generated |
+| `points_per_pacgum` | `int` | Points earned per pacgum eaten |
+| `points_per_super_pacgum` | `int` | Points earned per super-pacgum eaten |
+| `points_per_ghost` | `int` | Points earned per edible ghost eaten |
+| `seed` | `int` | Seed used to generate the first level's maze |
+| `level_max_time` | `int` | Time limit (seconds) per level |
 
-Unknown keys are ignored. Missing or invalid values are clamped to safe defaults and
-logged — the game never crashes or shows a Python traceback on a faulty config.
 
 ## Highscore
 
-[PLACEHOLDER: Describe your implementation — storage format/location, how the top 10
-are kept and sorted, how names are validated (max 10 chars, alphanumeric + spaces),
-when scores are loaded/saved, and *why* you chose this approach over alternatives.]
+The highscores are stored in `highscore.json` by default, it scores every game played.
+The highscores are are loaded, then sorted, then the top 10 are printed in the Menu and Ending argcade viwes
 
 ## Maze Generation
 
-This project does not implement its own maze generator. Levels are produced by the
-**[PLACEHOLDER: name of the assigned A-Maze-ing package]**, used as-is and treated as
-a black box.
+This project does not implement its own maze generator. Levels are produced by the **42 Central**'s mazegen provided in the project's page
 
 - The first level uses a fixed seed (`42` by default, configurable) for reproducibility.
-- Subsequent levels use a randomly generated seed.
-- `PERFECT` is set to `False` to produce Pac-Man-compatible corridors (loops, no
-  dead-end-only mazes).
-- [PLACEHOLDER: briefly describe your adapter/loader layer — how you translate the
-  package's output (walls, corridors, dimensions, etc.) into your internal map
-  representation, and how generator failures are handled.]
+- Subsequent levels use a sequence of the `42` seed.
+- `PERFECT` is set to `False` in the main.py to produce Pac-Man-compatible corridors (loops, no dead-end-only mazes).
+- The maze is printed using arcade, where for each Cell, we set the center, we determine 4 corners, and according to the `Integer`, the corners are connected.
 
-## Implementation
+## Implementation and General Software Architecture
 
-[PLACEHOLDER: Technical summary — how the game loop works (Arcade's `arcade.Window` /
-`View` system), how ghost AI/chase behavior is implemented, collision detection
-approach, cheat mode features, how pause/resume works, how the config parser/comment
-stripping works, error-handling strategy, etc.]
-
-## General Software Architecture
-
-[PLACEHOLDER: High-level overview of modules/classes and their relationships — e.g. a
-short tree of the source layout plus a description of key classes such as `Game`,
-`Player`, `Ghost`, `Maze`, `ConfigLoader`, `HighscoreManager`, `View`s, etc. A diagram
-or class list is welcome here.]
+- The game starts with the `arcade_Menu` view launched from the main.py after parsing the `config.json` and generating the n mazes.
+- When enter is pressed, the `arcade_Game` is launched and the game starts.
+- All the ghosts have the same behavior, following the `Pac-Man`.
+- When a `Super Pac-Gum` is eaten, the ghosts starts to walk on a random direction but your direction.
+- When all `Pac-Gums` are eaten, you start the next level.
+- When all levels are completed, the `arcade_Ending` is launched as a winner (you will never win) and you are asked to enter your name.
+- When all lives are consumed or time is over, the `arcade_Ending` is launched as a looser and you are asked to enter your name.
+- After Entering your name, `arcade_Menu` is relaunched if you wish to start again.
 
 ```
 [PLACEHOLDER: source tree, e.g.]
-src/
-├── pac_man.py          # entry point
-├── config/              # config loading & validation
-├── maze/                # adapter around the A-Maze-ing package
-├── entities/             # Player, Ghost, Pacgum...
-├── highscore/            # highscore persistence
-└── ui/                   # menus, HUD, game-over/victory screens
+/
+├── main.py                   # entry point
+├── parsing.py                # entry point
+├── config.json               # config loading & validation
+├── mazegen/                  # adapter around the A-Maze-ing package
+├── pacmanPack/               # Textures for Player, Ghost, Pacgum...
+├── highscore.json            # highscore persistence
+└── arcade_*                  # The initial Game, Menu, Ending and Cheats class
 ```
 
 ## Project Management
 
-[PLACEHOLDER: brief overview of how the team organized work — methodology used
-(Kanban/Scrum/etc.), how tasks were split, how decisions/conflicts were handled.]
-
-Full project management artifacts (timeline, progress tracking, risk analysis,
-acceptance test plan, etc.) are available in [`/project_management`](./project_management).
+EveryThing was done together, the code was not splited into parts, every line of code was done by both of us
 
 ## Resources
 
 - [Arcade documentation](https://api.arcade.academy/)
 - [Original Pac-Man on Wikipedia](https://en.wikipedia.org/wiki/Pac-Man)
-- [PLACEHOLDER: any tutorial, article, or doc you actually used]
+- [Original Pac-Man by Google](https://www.google.com/search?q=pac-man&oq=pac-man&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIGCAEQRRg8MgYIAhBFGDwyBggDEEUYPNIBCDE0ODdqMGoxqAIAsAIA&sourceid=chrome&ie=UTF-8)
 
 ### AI usage
 
 AI tools were used during this project for the following tasks:
 
-- [PLACEHOLDER: e.g. "Brainstorming approaches to ghost chase behavior — ideas were
-  reviewed and reimplemented by hand."]
-- [PLACEHOLDER: e.g. "Debugging help for the config comment-stripping regex."]
-- [PLACEHOLDER: e.g. "Drafting this README structure, filled in and verified by the team."]
-
-All AI-assisted code and explanations were reviewed, tested, and fully understood by
-the team before being integrated into the project.
+- Drafting this README structure, filled in and verified by the team."

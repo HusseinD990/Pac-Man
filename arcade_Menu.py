@@ -2,6 +2,8 @@ import arcade
 from typing import Dict, Any
 from arcade_Game import swap_color_state, swap_state, load_highscores
 from arcade_Game import Ghost, Game
+from resourcer import resource_path
+
 
 SCREEN_WIDTH = 2000
 SCREEN_HEIGHT = 1000
@@ -52,14 +54,14 @@ class MenuView(arcade.View):
         )
         text.draw()
 
-        p_sheet = arcade.SpriteSheet("pacmanPack/PacMan.png")
+        p_sheet = arcade.SpriteSheet(resource_path("pacmanPack/PacMan.png"))
         colors = ["green", "red", "yellow", "orange"]
         i = 1
         if not self.ghosts:
             for color in colors:
                 self.ghosts.append(Ghost(
                     -100 * i,
-                    self.window.height / 2 + 400,
+                    self.window.height // 2 + 400,
                     color
                 ))
                 i += 1
@@ -97,7 +99,9 @@ class MenuView(arcade.View):
             self.pac_man_pos = (x, y)
 
         for g in self.ghosts:
-            g_sheet = arcade.SpriteSheet(f"pacmanPack/{g.color}Ghost.png")
+            g_sheet = arcade.SpriteSheet(resource_path(
+                f"pacmanPack/{g.color}Ghost.png")
+            )
             g_textures = g_sheet.get_texture_grid(
                 size=(16, 16),
                 columns=8,

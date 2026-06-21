@@ -3,11 +3,12 @@ from typing import Tuple, Dict, Callable, Any, List
 import random
 import time
 import math
-import sys
 from pathlib import Path
 from collections import deque
 import json
 from arcade_Cheats import Cheats
+import os
+from resourcer import resource_path
 
 SCREEN_WIDTH = 2000
 SCREEN_HEIGHT = 1000
@@ -15,27 +16,31 @@ CELL_SIZE = 50
 
 
 def load_highscores(path: str) -> Dict:
-    """Load and sort high scores from a JSON file.
+    """Load and sort high scores from a JSON file in the current working
+    directory.
 
     Args:
-        path: Path to the high-score file.
+        path: Name or relative path of the high-score file
+        (e.g., "highscore.json").
 
     Returns:
         Dictionary sorted by descending score.
     """
-    p = Path(path)
+    p = Path(os.getcwd()) / path
 
     if not p.exists():
-        p.write_text("{}")
-        return {}
-
+        with p.open("w") as f:
+            json.dump({}, f)
     if p.stat().st_size == 0:
         return {}
 
     try:
         with p.open("r") as f:
             content = json.load(f)
-
+            for player, score in content.items():
+                if score <= 0:
+                    print("Error: Score must be a non-negative integer.")
+                    exit(1)
         return dict(
             sorted(content.items(), key=lambda item: item[1], reverse=True)
         )
@@ -364,6 +369,7 @@ class Game(arcade.View):
         self.cheats = Cheats()
         self.pause = True
         self.lives = dicr['lives']
+        self.mode = dicr['mode']
         self.grids = grids
         self.dicr = dicr
         self.current_level = 0
@@ -403,20 +409,22 @@ class Game(arcade.View):
         self.intro_timer.start()
         self.time_left.start()
         self.winning_sound = arcade.sound.load_sound(
-            "pacmanPack/winning.wav"
+            resource_path("pacmanPack/winning.wav")
         )
         self.super_coin_sound = arcade.sound.load_sound(
-            "pacmanPack/super_coin.wav"
+            resource_path("pacmanPack/super_coin.wav")
         )
         self.intro_sound = arcade.sound.load_sound(
-            "pacmanPack/pacman_intro.wav"
+            resource_path("pacmanPack/pacman_intro.wav")
         )
         self.eaten_sound = arcade.sound.load_sound(
-            "pacmanPack/vine-boom.wav"
+            resource_path("pacmanPack/vine-boom.wav")
         )
         self.player = arcade.sound.play_sound(self.intro_sound)
         self.start = True
-        self.coin_sound = arcade.sound.load_sound("pacmanPack/coin.wav")
+        self.coin_sound = arcade.sound.load_sound(
+            resource_path("pacmanPack/coin.wav")
+        )
 
     def init_phantome(self) -> List[Ghost]:
         """Create and position all ghosts.
@@ -711,14 +719,24 @@ class Game(arcade.View):
                                 possible_moves.remove(next_step)
                             g.move = random.choice(possible_moves)
                 if not self.cheats.freeze_gost:
-                    if g.move == "right":
-                        g.x += 1/16
-                    if g.move == "left":
-                        g.x -= 1/16
-                    if g.move == "up":
-                        g.y += 1/16
-                    if g.move == "down":
-                        g.y -= 1/16
+                    if self.mode == "easy":
+                        if g.move == "right":
+                            g.x += 1/32
+                        if g.move == "left":
+                            g.x -= 1/32
+                        if g.move == "up":
+                            g.y += 1/32
+                        if g.move == "down":
+                            g.y -= 1/32
+                    else:
+                        if g.move == "right":
+                            g.x += 1/16
+                        if g.move == "left":
+                            g.x -= 1/16
+                        if g.move == "up":
+                            g.y += 1/16
+                        if g.move == "down":
+                            g.y -= 1/16
                 x, y = self.pac_man_pos
 
                 if x - 0.2 <= g.x <= x + 0.2 and y - 0.2 <= g.y <= y + 0.2:
@@ -746,14 +764,19 @@ class Game(arcade.View):
         self.clear()
 
         with self.camera.activate():
-            coin_sheet = arcade.SpriteSheet("pacmanPack/Coin.png")
+            coin_sheet = arcade.SpriteSheet(
+                resource_path("pacmanPack/Coin.png")
+            )
+
             coin_textures = coin_sheet.get_texture_grid(
                 size=(16, 16),
                 columns=8,
                 count=8
             )
 
-            super_coin_sheet = arcade.SpriteSheet("pacmanPack/BigCoin.png")
+            super_coin_sheet = arcade.SpriteSheet(
+                resource_path("pacmanPack/BigCoin.png")
+            )
             super_coin_textures = super_coin_sheet.get_texture_grid(
                 size=(16, 16),
                 columns=8,
@@ -832,7 +855,13 @@ class Game(arcade.View):
             self.actual_coins_state = self.coin_state()
 
             if self.time_left.is_finished():
-                sys.exit(1)
+                from arcade_Ending import EndView
+                self.window.show_view(EndView(
+                    self.score,
+                    self.dicr['highscore_filename'],
+                    self.grids,
+                    self.dicr)
+                )
 
             # draw the super coins
             for row_idx in range(len(self.coins)):
@@ -868,7 +897,7 @@ class Game(arcade.View):
             # draw the Pac-Man
             tempx, tempy = self.pac_man_pos
             x, y = self._get_screen_pos(tempx, tempy)
-            sheet = arcade.SpriteSheet("pacmanPack/PacMan.png")
+            sheet = arcade.SpriteSheet(resource_path("pacmanPack/PacMan.png"))
             textures = sheet.get_texture_grid(
                 size=(16, 16),
                 columns=8,
@@ -899,7 +928,9 @@ class Game(arcade.View):
                 else:
                     g.color = g.originalColor
                 tempx, tempy = self._get_screen_pos(g.x, g.y)
-                sheet = arcade.SpriteSheet(f"pacmanPack/{g.color}Ghost.png")
+                sheet = arcade.SpriteSheet(resource_path(
+                    f"pacmanPack/{g.color}Ghost.png")
+                )
                 ghost_textures = sheet.get_texture_grid(
                     size=(16, 16),
                     columns=8,

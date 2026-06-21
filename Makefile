@@ -20,8 +20,14 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 lint:
-	python3 -m flake8 .
-	mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	uv run flake8 . --exclude=.venv
+	uv run mypy . \
+		--exclude '(^|/)\.venv(/|$$)' \
+		--warn-return-any \
+		--warn-unused-ignores \
+		--ignore-missing-imports \
+		--disallow-untyped-defs \
+		--check-untyped-defs
 
 lint-strict:
-	mypy . --strict
+	mypy . --strict --exclude '(^|/)\.venv(/|$$)'

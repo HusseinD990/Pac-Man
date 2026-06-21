@@ -3,11 +3,17 @@ from arcade_Menu import MenuView
 from parsing import Parsing
 import arcade
 import sys
+from resourcer import resource_path
 
 
 if __name__ == "__main__":
     try:
-        parser = Parsing(sys.argv[1])
+        if len(sys.argv) != 2:
+            raise ValueError(
+                "Error: Program should take only a configuation file"
+            )
+        config = sys.argv[1]
+        parser = Parsing(resource_path(config))
         dicr = parser.parse()
         w = dicr['width']
         h = dicr['height']

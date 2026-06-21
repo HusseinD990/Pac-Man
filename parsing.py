@@ -1,5 +1,6 @@
 import json
 from typing import Any
+import sys
 
 
 class Parsing():
@@ -37,10 +38,11 @@ class Parsing():
             "points_per_super_pacgum": 0,
             "points_per_ghost": 0,
             "seed": 0,
-            "level_max_time": 0
+            "level_max_time": 0,
+            "mode": 0
         }
 
-        with open("config.json") as f:
+        with open(sys.argv[1]) as f:
             lines = []
             for line in f:
                 line = line.split("#", 1)[0]
@@ -55,8 +57,16 @@ class Parsing():
                 else:
                     keys[key] += 1
                 if key == "highscore_filename":
-                    if not val.endswith(".json") and len(val) < 5:
+                    val = val.strip(", \n\"")
+                    if (
+                        val == "config.json" or
+                        not val.endswith(".json") or len(val) < 6
+                    ):
                         raise ValueError("Error: Invalid highscore_filename")
+                elif key == "mode":
+                    val = val.strip(", \n\"")
+                    if val.lower() != "easy" and val.lower() != "hard":
+                        raise ValueError("Error: Invalid game mode")
                 else:
                     numeric_value = int(val)
                     if not isinstance(numeric_value, int):
