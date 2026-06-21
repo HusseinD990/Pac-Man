@@ -133,3 +133,16 @@ EveryThing was done together, the code was not splited into parts, every line of
 AI tools were used during this project for the following tasks:
 
 - Drafting this README structure, filled in and verified by the team."
+
+
+## Upload to Itch.io
+
+- Run the command:
+
+```bash
+pyinstaller --onefile --add-data "mazegen:mazegen" --add-data "pacmanPack:pacmanPack" --add-data "config.json:." main.py
+```
+
+- Open the link `https://hdaoun.itch.io/pacman` and install it.
+- Extract the zip file, and ./main config.json
+- Enjoy :)
